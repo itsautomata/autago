@@ -1,0 +1,64 @@
+# autago default configuration
+
+llm:
+  provider: ollama
+  model: qwen3:8b
+  temperature: 0.0
+  max_tokens: 2048
+
+  # provider-specific overrides
+  ollama:
+    host: http://localhost:11434
+
+  # openrouter models to try:
+  # google/gemma-4-31b-it
+  # qwen/qwen3-32b
+  # meta-llama/llama-4-maverick
+  # mistralai/mistral-small-3.1-24b-instruct
+
+  # gemini models:
+  # gemma-4-31b-it
+  # gemma-4-26b-a4b-it
+
+experiment:
+  agent_count: 3
+  forward_path_max_length: 3
+  max_execution_attempts: 5
+  warmup_tasks: 100
+  test_tasks: 50
+
+agents:
+  abilities:
+    - reasoning
+    - mathematical
+    - language
+    - knowledge
+    - sequence
+    - spatial
+    - inference
+  initial_ability: 0.6
+  ability_bounds: [0.1, 2.0]
+  decay_rate: 0.1
+  decay_interval: 10
+
+graph:
+  type: complete
+  initial_edge_weight: 1.0
+  edge_bounds: [0.1, 2.0]
+  prune_threshold: 0.3
+  success_factor: 1.1
+  failure_factor: 0.9
+
+memory:
+  executor_limit: 40
+  router_limit: -1  # unlimited
+  retrieval_top_k: 3
+  retrieval_threshold: 0.7
+  eviction: embedding_diversity  # or: llm, lru
+
+routing:
+  weights:
+    ability: 0.4
+    load: 0.3
+    success_rate: 0.2
+    connectivity: 0.1
