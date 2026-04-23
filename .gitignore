@@ -1,0 +1,6 @@
+__pycache__/
+*.py[oc]
+*.egg-info/
+.venv
+.env
+local_docs

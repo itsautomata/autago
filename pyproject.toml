@@ -1,0 +1,16 @@
+[project]
+name = "autago"
+version = "0.1.0"
+description = "self-specializing agent network. agents start identical, become different through task pressure."
+requires-python = ">=3.11"
+dependencies = [
+    "httpx>=0.28.1",
+    "python-dotenv>=1.2.2",
+    "pyyaml>=6.0.3",
+]
+
+[project.scripts]
+autago = "core.cli:main"
+
+[tool.setuptools.packages]
+find = {include = ["core*"]}
