@@ -3,6 +3,8 @@ dataset loader. downloads and parses BBH (BIG-Bench Hard) tasks.
 """
 
 import json
+import random
+from collections import defaultdict
 from pathlib import Path
 
 import httpx
@@ -75,8 +77,8 @@ def load_bbh_task(task_name):
     return examples
 
 
-def load_bbh(task_names=None, max_per_task=None):
-    """load multiple BBH tasks. returns flat list of examples."""
+def load_bbh(task_names=None, max_per_task=None, shuffle=True):
+    """load multiple BBH tasks. returns flat list of examples, shuffled across types."""
     tasks = task_names or BBH_TASKS
     all_examples = []
 
@@ -86,10 +88,27 @@ def load_bbh(task_names=None, max_per_task=None):
             examples = examples[:max_per_task]
         all_examples.extend(examples)
 
+    if shuffle:
+        random.shuffle(all_examples)
+
     return all_examples
 
 
 def split_dataset(examples, train_ratio=0.8):
-    """split examples into train (warmup) and test sets."""
-    split_idx = int(len(examples) * train_ratio)
-    return examples[:split_idx], examples[split_idx:]
+    """split examples into train (warmup) and test sets.
+    uses stratified split: each task type is split proportionally
+    so both sets contain a mix of all types."""
+    by_type = defaultdict(list)
+    for ex in examples:
+        by_type[ex["task_type"]].append(ex)
+
+    train, test = [], []
+    for task_type, type_examples in by_type.items():
+        split_idx = max(1, int(len(type_examples) * train_ratio))
+        train.extend(type_examples[:split_idx])
+        test.extend(type_examples[split_idx:])
+
+    random.shuffle(train)
+    random.shuffle(test)
+
+    return train, test

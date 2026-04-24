@@ -24,6 +24,7 @@ experiment:
   agent_count: 3
   forward_path_max_length: 3
   max_execution_attempts: 5
+  max_per_task: 10          # examples per task type to load (null for all)
   warmup_tasks: 100
   test_tasks: 50
 
