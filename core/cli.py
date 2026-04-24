@@ -4,11 +4,11 @@ autago: self-specializing agent network.
 
 usage:
     autago --test                                          # test LLM connection
-    autago --config config/bbh.yaml                        # specific config
-    autago --provider openrouter --model google/gemma-4-31b-it
-    autago --provider ollama --model qwen3:8b
-    autago --provider gemini --model gemma-4-31b-it
-    autago llm.temperature=0.5 experiment.agent_count=5    # override any config value
+    autago run                                             # run experiment with default config
+    autago run --name "baseline"                           # named run
+    autago run --provider openrouter --model google/gemma-4-31b-it
+    autago run --provider ollama --model qwen3:8b
+    autago run experiment.agent_count=5                    # override any config value
 """
 
 import sys
@@ -22,6 +22,8 @@ def parse_args(argv):
     provider = None
     model = None
     test_mode = False
+    run_mode = False
+    run_name = None
     overrides = []
 
     i = 0
@@ -36,8 +38,14 @@ def parse_args(argv):
         elif arg == "--model" and i + 1 < len(argv):
             model = argv[i + 1]
             i += 2
+        elif arg == "--name" and i + 1 < len(argv):
+            run_name = argv[i + 1]
+            i += 2
         elif arg == "--test":
             test_mode = True
+            i += 1
+        elif arg == "run":
+            run_mode = True
             i += 1
         elif "=" in arg:
             overrides.append(arg)
@@ -45,7 +53,7 @@ def parse_args(argv):
         else:
             i += 1
 
-    return config_path, provider, model, test_mode, overrides
+    return config_path, provider, model, test_mode, run_mode, run_name, overrides
 
 
 def test_llm(config):
@@ -69,7 +77,7 @@ def test_llm(config):
 
 def main():
     args = sys.argv[1:]
-    config_path, provider_override, model_override, test_mode, overrides = parse_args(args)
+    config_path, provider_override, model_override, test_mode, run_mode, run_name, overrides = parse_args(args)
 
     # load config
     config = cfg.load(config_path)
@@ -86,18 +94,19 @@ def main():
         test_llm(config)
         return
 
-    # initialize LLM
-    provider_name, kwargs = cfg.get_llm_kwargs(config)
-    llm.init(provider_name, **kwargs)
+    if run_mode:
+        from core.experiment import run_experiment
+        run_experiment(config, run_name=run_name)
+        return
 
-    print(f"autago initialized")
-    print(f"  provider: {provider_name}")
-    print(f"  model: {config['llm']['model']}")
-    print(f"  agents: {config['experiment']['agent_count']}")
-    print()
-
-    # TODO: experiment runner goes here
-    print("experiment runner not built yet. use --test to verify LLM connection.")
+    # no command: show usage
+    print("autago: self-specializing agent network\n")
+    print("commands:")
+    print("  autago --test                  test LLM connection")
+    print("  autago run                     run experiment")
+    print("  autago run --name baseline     named run")
+    print("  autago run --provider ollama   use specific provider")
+    print("  autago run experiment.agent_count=5  override config")
 
 
 if __name__ == "__main__":
