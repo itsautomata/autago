@@ -20,9 +20,19 @@ RESULTS_DIR = Path(__file__).parent.parent / "results"
 
 def run_experiment(config, run_name=None):
     """run a full experiment: warmup + test."""
-    # init LLM
+    # init LLM and verify connection before anything else
     provider_name, kwargs = cfg.get_llm_kwargs(config)
     llm.init(provider_name, **kwargs)
+
+    print(f"verifying {provider_name} connection...")
+    try:
+        llm.verify()
+    except Exception as e:
+        print(f"connection failed: {e}")
+        if provider_name == "ollama":
+            print("  start ollama: ollama serve")
+        return
+    print("connection ok.\n")
 
     exp_cfg = config["experiment"]
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -33,11 +43,12 @@ def run_experiment(config, run_name=None):
     # save config
     (run_dir / "config.json").write_text(json.dumps(config, indent=2))
 
-    print(f"\n{'='*50}")
+    print(f"{'='*50}")
     print(f"  autago experiment")
     print(f"  provider: {provider_name}")
     print(f"  model: {config['llm']['model']}")
     print(f"  agents: {exp_cfg['agent_count']}")
+    print(f"  routing: {config.get('routing', {}).get('mode', 'score')}")
     print(f"{'='*50}\n")
 
     # load data

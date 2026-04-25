@@ -140,3 +140,9 @@ def call(system, messages, temperature=0.0, max_tokens=2048):
     if _default_provider is None:
         raise RuntimeError("llm not initialized. call llm.init() first.")
     return _default_provider.call(system, messages, temperature, max_tokens)
+
+
+def verify():
+    """verify connection works. returns True or raises."""
+    call("respond with ok", [{"role": "user", "content": "ping"}], max_tokens=5)
+    return True

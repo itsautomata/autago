@@ -63,16 +63,14 @@ def test_llm(config):
     print(f"model: {kwargs.get('model')}")
     print(f"testing connection...\n")
 
-    provider = llm.init(provider_name, **kwargs)
-
-    response = llm.call(
-        "you are a helpful assistant. respond in one sentence.",
-        [{"role": "user", "content": "what is 2 + 2?"}],
-        temperature=0.0,
-        max_tokens=50,
-    )
-    print(f"response: {response}")
-    print("\nconnection ok.")
+    try:
+        llm.init(provider_name, **kwargs)
+        llm.verify()
+        print("connection ok.")
+    except Exception as e:
+        print(f"failed: {e}")
+        if provider_name == "ollama":
+            print("  start ollama: ollama serve")
 
 
 def main():
@@ -102,11 +100,34 @@ def main():
     # no command: show usage
     print("autago: self-specializing agent network\n")
     print("commands:")
-    print("  autago --test                  test LLM connection")
-    print("  autago run                     run experiment")
-    print("  autago run --name baseline     named run")
-    print("  autago run --provider ollama   use specific provider")
-    print("  autago run experiment.agent_count=5  override config")
+    print("  autago --test                              test LLM connection")
+    print("  autago run                                 run experiment")
+    print("  autago run --name baseline                 named run")
+    print("  autago run --config config/custom.yaml     use custom config")
+    print()
+    print("provider overrides:")
+    print("  --provider ollama|gemini|openrouter")
+    print("  --model qwen3:8b|gemma-4-31b-it|google/gemma-4-31b-it")
+    print()
+    print("config overrides (key=value):")
+    print("  llm.provider=ollama              LLM provider")
+    print("  llm.model=qwen3:8b               model name")
+    print("  llm.temperature=0.0              sampling temperature")
+    print("  llm.max_tokens=2048              max output tokens")
+    print("  experiment.agent_count=3         number of agents")
+    print("  experiment.warmup_tasks=100      training tasks")
+    print("  experiment.test_tasks=50         evaluation tasks")
+    print("  experiment.max_per_task=10       examples per task type")
+    print("  experiment.forward_path_max_length=3  max forward hops")
+    print("  routing.mode=score               score|hybrid|llm")
+    print("  agents.initial_ability=0.6       starting ability score")
+    print("  agents.decay_rate=0.1            ability decay rate")
+    print("  agents.decay_interval=10         decay every N tasks")
+    print("  graph.prune_threshold=0.3        edge pruning threshold")
+    print("  graph.success_factor=1.1         edge weight on success")
+    print("  graph.failure_factor=0.9         edge weight on failure")
+    print("  memory.executor_limit=40         executor memory pool size")
+    print("  memory.retrieval_top_k=3         similar experiences to retrieve")
 
 
 if __name__ == "__main__":
