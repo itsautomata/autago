@@ -251,10 +251,17 @@ class Agent:
         return None
 
     def _parse_answer(self, response):
+        if not response or not response.strip():
+            return ""
         for line in response.strip().split("\n"):
-            if line.strip().upper().startswith("ANSWER:"):
+            upper = line.strip().upper()
+            if upper.startswith("ANSWER:"):
                 return line.split(":", 1)[1].strip()
-        return response.strip()
+            if upper.startswith("THE ANSWER IS"):
+                return line.split("IS", 1)[1].strip().rstrip(".")
+        # fallback: last non-empty line
+        lines = [ln for ln in response.strip().split("\n") if ln.strip()]
+        return lines[-1].strip() if lines else ""
 
 
 # task type to ability dimension mapping (BBH)

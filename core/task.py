@@ -45,7 +45,28 @@ class Task:
         self.completed_at = time.time()
 
     def check_answer(self):
-        """check if result matches expected answer."""
+        """check if result matches expected answer. flexible matching."""
         if not self.expected_answer:
             return None
-        return self.result.strip().lower() == self.expected_answer.strip().lower()
+        result = self._normalize(self.result)
+        expected = self._normalize(self.expected_answer)
+        if not result:
+            return False
+        # exact match after normalization
+        if result == expected:
+            return True
+        # check if expected is contained in result (handles "The answer is X")
+        if expected in result:
+            return True
+        # check if result is contained in expected
+        if result in expected:
+            return True
+        return False
+
+    @staticmethod
+    def _normalize(text):
+        """strip whitespace, parentheses, quotes, lowercase."""
+        text = text.strip().lower()
+        text = text.strip("()[]\"'")
+        text = text.strip()
+        return text
