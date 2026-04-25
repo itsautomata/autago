@@ -34,6 +34,26 @@ autago run --provider gemini --model gemma-4-31b-it
 
 # quick test run with a name
 autago run experiment.warmup_tasks=10 experiment.test_tasks=5 --name quick_test
+
+# estimate cost before running
+autago --estimate
+autago --estimate --provider=openrouter --model=google/gemma-4-31b-it
+autago --estimate routing.mode=llm experiment.warmup_tasks=500
+```
+
+## cost estimator 
+
+`autago --estimate` predicts cost of simulation running based on all config choices: provider, model, routing mode, task count, agent count.
+
+```
+cost estimate:
+  model: anthropic/claude-haiku-4.5 (openrouter)
+  routing: llm
+  tasks: 150
+  LLM calls: 501
+  identity snapshots: 50
+  tokens: ~236,000 (180,000 in, 56,000 out)
+  cost: $0.4600
 ```
 
 ## datasets
