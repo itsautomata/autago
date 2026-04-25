@@ -33,7 +33,9 @@ class AgentGraph:
 
         self.pruned_edges = []  # history of pruned connections
         self.logger = logger
-        self.routing_mode = config.get("routing", {}).get("mode", "score")
+        routing_cfg = config.get("routing", {})
+        self.routing_mode = routing_cfg.get("mode", "score")
+        self.epsilon = routing_cfg.get("epsilon", 0.15)
 
     def get_agent(self, agent_id):
         return self.agents[agent_id]
@@ -47,17 +49,27 @@ class AgentGraph:
         ]
 
     def select_initial_agent(self, task):
-        """pick the best starting agent for a task based on ability scores."""
+        """pick starting agent. epsilon-greedy: explore with probability epsilon."""
+        import random
+
+        epsilon = self.config.get("routing", {}).get("epsilon", 0.15)
+
+        # explore: pick random agent
+        if random.random() < epsilon:
+            return self.agents[random.choice(list(self.agents.keys()))]
+
+        # exploit: pick best scoring agent
         scores = {}
         for agent_id, agent in self.agents.items():
             scores[agent_id] = agent.ability_score(task.task_type)
 
         best_score = max(scores.values())
-        best_agents = [aid for aid, s in scores.items() if s == best_score]
-
-        # tiebreak: lowest load
-        import random
-        best_agents.sort(key=lambda aid: (self.agents[aid].load, random.random()))
+        best_agents = [
+            aid for aid, s in scores.items() if s == best_score
+        ]
+        best_agents.sort(
+            key=lambda aid: (self.agents[aid].load, random.random())
+        )
         return self.agents[best_agents[0]]
 
     def score_candidates(self, source_agent, task, candidates):
@@ -128,6 +140,7 @@ class AgentGraph:
                 task, self.max_forwards,
                 routing_mode=self.routing_mode,
                 best_other_score=best_other_score,
+                epsilon=self.epsilon,
             )
 
             # extract reasoning from the last decision record

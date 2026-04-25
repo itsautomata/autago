@@ -55,13 +55,16 @@ class Agent:
         lines = [f"  {k}: {v:.2f}" for k, v in sorted(self.abilities.items())]
         return "\n".join(lines)
 
-    def decide_action(self, task, max_forwards, routing_mode="score", best_other_score=0.0):
+    def decide_action(
+        self, task, max_forwards,
+        routing_mode="score", best_other_score=0.0, epsilon=0.0,
+    ):
         """router: decide EXECUTE, FORWARD, or SPLIT.
 
         routing_mode:
-          - "score": pure math, no LLM call. compares own ability vs best other agent.
-          - "hybrid": uses scores, calls LLM only when ambiguous (spread < 0.1).
-          - "llm": always calls LLM (original AgentNet behavior).
+          score: pure math, no LLM. epsilon applies.
+          hybrid: scores + LLM on ambiguous. epsilon applies.
+          llm: always LLM. no epsilon (LLM decides).
         """
         self.load += 1
         forwards_remaining = max_forwards - len(task.forward_history)
@@ -70,16 +73,24 @@ class Agent:
             decision = "EXECUTE"
             reasoning = "no forwards remaining"
         elif routing_mode == "score":
-            decision, reasoning = self._decide_by_score(task, best_other_score)
+            decision, reasoning = self._decide_by_score(
+                task, best_other_score, epsilon,
+            )
         elif routing_mode == "hybrid":
             my_score = self.ability_score(task.task_type)
             spread = my_score - best_other_score
             if abs(spread) < 0.1 and forwards_remaining > 0:
-                decision, reasoning = self._decide_by_llm(task, max_forwards)
+                decision, reasoning = self._decide_by_llm(
+                    task, max_forwards,
+                )
             else:
-                decision, reasoning = self._decide_by_score(task, best_other_score)
-        else:  # llm mode
-            decision, reasoning = self._decide_by_llm(task, max_forwards)
+                decision, reasoning = self._decide_by_score(
+                    task, best_other_score, epsilon,
+                )
+        else:  # llm mode, no epsilon
+            decision, reasoning = self._decide_by_llm(
+                task, max_forwards,
+            )
 
         self.decisions.append({
             "task_id": task.task_id,
@@ -88,16 +99,34 @@ class Agent:
         })
         return decision
 
-    def _decide_by_score(self, task, best_other_score):
-        """route by capability scores. no LLM call."""
+    def _decide_by_score(self, task, best_other_score, epsilon=0.0):
+        """route by capability scores with epsilon exploration."""
+        import random
+
         my_score = self.ability_score(task.task_type)
         relevant = TASK_ABILITY_MAP.get(task.task_type, [])
-        relevant_str = ", ".join(f"{a}={self.abilities.get(a, 0):.2f}" for a in relevant) if relevant else "general"
+        relevant_str = (
+            ", ".join(
+                f"{a}={self.abilities.get(a, 0):.2f}"
+                for a in relevant
+            )
+            if relevant else "general"
+        )
+
+        # epsilon: random chance to execute regardless of score
+        if epsilon > 0 and random.random() < epsilon:
+            return "EXECUTE", f"[{relevant_str}] epsilon explore, executing"
 
         if my_score >= best_other_score:
-            return "EXECUTE", f"[{relevant_str}] my score {my_score:.2f} >= best other {best_other_score:.2f}"
+            return "EXECUTE", (
+                f"[{relevant_str}] my score {my_score:.2f} "
+                f">= best other {best_other_score:.2f}"
+            )
         else:
-            return "FORWARD", f"[{relevant_str}] my score {my_score:.2f} < best other {best_other_score:.2f}, deferring"
+            return "FORWARD", (
+                f"[{relevant_str}] my score {my_score:.2f} "
+                f"< best other {best_other_score:.2f}, deferring"
+            )
 
     def _decide_by_llm(self, task, max_forwards):
         """route by LLM decision. original AgentNet behavior."""
