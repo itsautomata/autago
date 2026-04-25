@@ -41,6 +41,7 @@ agents:
   ability_bounds: [0.1, 2.0]
   decay_rate: 0.1
   decay_interval: 10
+  identity_interval: 15      # write identity snapshot every N tasks (0 = disabled)
 
 graph:
   type: complete
@@ -65,8 +66,15 @@ logging:
   enabled: true             # detailed logging (file + verbose terminal)
   verbose: true             # show per-task output in terminal
 
+# pricing per million tokens [input, output]. add your own models here.
+pricing:
+  # openrouter
+  anthropic/claude-haiku-4.5: [1.0, 5.0]
+
+
 routing:
-  mode: score              # score (pure math, fast), hybrid (LLM on ambiguous), llm (original)
+  mode: llm              # score (arithmetic, fast), hybrid (LLM on ambiguous), llm (original)
+  epsilon: 0.0            # exploration rate: probability of random agent assignment (0 = pure exploit)
   weights:
     ability: 0.4
     load: 0.3
