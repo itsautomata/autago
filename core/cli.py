@@ -3,8 +3,8 @@
 autago: self-specializing agent network.
 
 usage:
-    autago --test                                          # test LLM connection
-    autago run                                             # run experiment with default config
+    autago --test                             # test LLM connection
+    autago run                                # run experiment
     autago run --name "baseline"                           # named run
     autago run --provider openrouter --model google/gemma-4-31b-it
     autago run --provider ollama --model qwen3:8b
@@ -61,7 +61,7 @@ def test_llm(config):
     provider_name, kwargs = cfg.get_llm_kwargs(config)
     print(f"provider: {provider_name}")
     print(f"model: {kwargs.get('model')}")
-    print(f"testing connection...\n")
+    print("testing connection...\n")
 
     try:
         llm.init(provider_name, **kwargs)
@@ -75,7 +75,8 @@ def test_llm(config):
 
 def main():
     args = sys.argv[1:]
-    config_path, provider_override, model_override, test_mode, run_mode, run_name, overrides = parse_args(args)
+    (config_path, provider_override, model_override,
+     test_mode, run_mode, run_name, overrides) = parse_args(args)
 
     # load config
     config = cfg.load(config_path)
@@ -128,6 +129,8 @@ def main():
     print("  graph.failure_factor=0.9         edge weight on failure")
     print("  memory.executor_limit=40         executor memory pool size")
     print("  memory.retrieval_top_k=3         similar experiences to retrieve")
+    print("  logging.enabled=true             detailed logging on/off")
+    print("  logging.verbose=true             terminal output on/off")
 
 
 if __name__ == "__main__":

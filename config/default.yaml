@@ -50,12 +50,20 @@ graph:
   success_factor: 1.1
   failure_factor: 0.9
 
+embedding:
+  model: all-MiniLM-L6-v2    # all-MiniLM-L6-v2 (80MB), BAAI/bge-small-en-v1.5 (130MB), BAAI/bge-large-en-v1.5 (1.3GB)
+  cache_limit: 1000
+
 memory:
   executor_limit: 40
   router_limit: -1  # unlimited
   retrieval_top_k: 3
   retrieval_threshold: 0.7
   eviction: embedding_diversity  # or: llm, lru
+
+logging:
+  enabled: true             # detailed logging (file + verbose terminal)
+  verbose: true             # show per-task output in terminal
 
 routing:
   mode: score              # score (pure math, fast), hybrid (LLM on ambiguous), llm (original)
