@@ -77,8 +77,9 @@ class Metrics:
         """which agents execute most, which forward most."""
         executor_counts = {}
         for r in self.records:
-            executor = r["path"][-1]
-            executor_counts[executor] = executor_counts.get(executor, 0) + 1
+            if r["path"]:
+                executor = r["path"][-1]
+                executor_counts[executor] = executor_counts.get(executor, 0) + 1
         return executor_counts
 
     def summary(self):
