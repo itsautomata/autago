@@ -144,16 +144,16 @@ def run_phase(graph, examples, metrics, phase_name, run_dir, update_graph=True):
             if success is None:
                 success = False
 
-            if update_graph:
-                graph.update_after_task(completed_task, path, success)
-
-            # check if memory was used (executor had retrievable experiences)
+            # check if memory was used BEFORE storing this task
             executor_id = path[-1] if path else None
             memory_used = False
             if executor_id is not None:
                 executor = graph.agents[executor_id]
                 query = f"[{task.task_type}] {task.description}"
                 memory_used = len(executor.executor_memory.retrieve(query)) > 0
+
+            if update_graph:
+                graph.update_after_task(completed_task, path, success)
 
             metrics.record(completed_task, path, success, memory_used=memory_used)
 
