@@ -58,6 +58,7 @@ memory:
   eviction: embedding_diversity  # or: llm, lru
 
 routing:
+  mode: score              # score (pure math, fast), hybrid (LLM on ambiguous), llm (original)
   weights:
     ability: 0.4
     load: 0.3
