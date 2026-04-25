@@ -23,26 +23,46 @@ def parse_args(argv):
     model = None
     test_mode = False
     run_mode = False
+    estimate_mode = False
+    models_mode = False
     run_name = None
     overrides = []
 
     i = 0
     while i < len(argv):
         arg = argv[i]
-        if arg == "--config" and i + 1 < len(argv):
+        if arg.startswith("--config="):
+            config_path = arg.split("=", 1)[1]
+            i += 1
+        elif arg == "--config" and i + 1 < len(argv):
             config_path = argv[i + 1]
             i += 2
+        elif arg.startswith("--provider="):
+            provider = arg.split("=", 1)[1]
+            i += 1
         elif arg == "--provider" and i + 1 < len(argv):
             provider = argv[i + 1]
             i += 2
+        elif arg.startswith("--model="):
+            model = arg.split("=", 1)[1]
+            i += 1
         elif arg == "--model" and i + 1 < len(argv):
             model = argv[i + 1]
             i += 2
+        elif arg.startswith("--name="):
+            run_name = arg.split("=", 1)[1]
+            i += 1
         elif arg == "--name" and i + 1 < len(argv):
             run_name = argv[i + 1]
             i += 2
         elif arg == "--test":
             test_mode = True
+            i += 1
+        elif arg == "--estimate":
+            estimate_mode = True
+            i += 1
+        elif arg == "--models":
+            models_mode = True
             i += 1
         elif arg == "run":
             run_mode = True
@@ -53,7 +73,9 @@ def parse_args(argv):
         else:
             i += 1
 
-    return config_path, provider, model, test_mode, run_mode, run_name, overrides
+    return (config_path, provider, model, test_mode,
+            run_mode, estimate_mode, models_mode,
+            run_name, overrides)
 
 
 def test_llm(config):
@@ -76,7 +98,8 @@ def test_llm(config):
 def main():
     args = sys.argv[1:]
     (config_path, provider_override, model_override,
-     test_mode, run_mode, run_name, overrides) = parse_args(args)
+     test_mode, run_mode, estimate_mode, models_mode,
+     run_name, overrides) = parse_args(args)
 
     # load config
     config = cfg.load(config_path)
@@ -88,6 +111,26 @@ def main():
         overrides.append(f"llm.model={model_override}")
     if overrides:
         config = cfg.override(config, overrides)
+
+    if models_mode:
+        pricing = config.get("pricing", {})
+        print("available models (pricing per M tokens):\n")
+        print(f"  {'model':<45} {'input':>7} {'output':>7}")
+        print(f"  {'-'*45} {'-'*7} {'-'*7}")
+        for model_name, prices in sorted(pricing.items()):
+            inp = "free" if prices[0] == 0 else f"${prices[0]}"
+            out = "free" if prices[1] == 0 else f"${prices[1]}"
+            print(f"  {model_name:<45} {inp:>7} {out:>7}")
+        print(
+            "\nadd models in config/default.yaml "
+            "under 'pricing:'"
+        )
+        return
+
+    if estimate_mode:
+        from core.cost import print_estimate
+        print_estimate(config)
+        return
 
     if test_mode:
         test_llm(config)
@@ -102,6 +145,8 @@ def main():
     print("autago: self-specializing agent network\n")
     print("commands:")
     print("  autago --test                              test LLM connection")
+    print("  autago --estimate                          estimate cost")
+    print("  autago --models                            list models and pricing")
     print("  autago run                                 run experiment")
     print("  autago run --name baseline                 named run")
     print("  autago run --config config/custom.yaml     use custom config")

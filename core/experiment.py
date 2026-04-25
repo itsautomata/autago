@@ -86,7 +86,10 @@ def run_experiment(config, run_name=None):
     # phase 1: warmup (train with updates)
     print("--- WARMUP ---\n")
     warmup_metrics = Metrics()
-    run_phase(graph, train, warmup_metrics, "warmup", run_dir, update_graph=True)
+    run_phase(
+        graph, train, warmup_metrics, "warmup",
+        run_dir, update_graph=True,
+    )
 
     print(f"\n  warmup accuracy: {warmup_metrics.accuracy:.1%}")
     print(f"  warmup avg hops: {warmup_metrics.avg_hops:.2f}")
@@ -97,7 +100,10 @@ def run_experiment(config, run_name=None):
     # phase 2: test (evaluate without updates)
     print("\n--- TEST ---\n")
     test_metrics = Metrics()
-    run_phase(graph, test, test_metrics, "test", run_dir, update_graph=False)
+    run_phase(
+        graph, test, test_metrics, "test",
+        run_dir, update_graph=False,
+    )
 
     print(f"\n  test accuracy: {test_metrics.accuracy:.1%}")
     print(f"  test avg hops: {test_metrics.avg_hops:.2f}")
@@ -125,7 +131,8 @@ def run_experiment(config, run_name=None):
     print(f"{'='*50}\n")
 
 
-def run_phase(graph, examples, metrics, phase_name, run_dir, update_graph=True):
+def run_phase(graph, examples, metrics, phase_name, run_dir,
+              update_graph=True):
     """run a set of tasks through the graph."""
     phase_dir = run_dir / phase_name
     phase_dir.mkdir(exist_ok=True)
