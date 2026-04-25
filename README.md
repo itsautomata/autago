@@ -6,6 +6,36 @@ agents start identical, become different and evolve through task pressure. topol
 
 based on [AgentNet: Decentralized Evolutionary Coordination for LLM-based Multi-Agent Systems](https://arxiv.org/abs/2504.00587) (NeurIPS 2025) framework. reproducing it from scratch with major refinements and more configuration control.
 
+## setup
+
+```bash
+# install
+uv pip install -e .
+
+# set up provider (pick one)
+# option 1: local (ollama)
+ollama serve                  # in another terminal
+ollama pull qwen3:8b
+
+# option 2: gemini 
+echo "GEMINI_API_KEY=your_key" > .env
+
+# option 3: openrouter
+echo "OPENROUTER_API_KEY=your_key" > .env
+
+# test connection
+autago --test
+
+# run experiment
+autago run
+
+# run with different provider
+autago run --provider gemini --model gemma-4-31b-it 
+
+# quick test run with a name
+autago run experiment.warmup_tasks=10 experiment.test_tasks=5 --name quick_test
+```
+
 ## datasets
 
 ### BBH (first dataset)
