@@ -83,8 +83,81 @@ class Metrics:
         for r in self.records:
             if r["path"]:
                 executor = r["path"][-1]
-                executor_counts[executor] = executor_counts.get(executor, 0) + 1
+                executor_counts[executor] = (
+                    executor_counts.get(executor, 0) + 1
+                )
         return executor_counts
+
+    def agent_task_distribution(self):
+        """which agent handled which task types, with counts and accuracy."""
+        dist = {}
+        for r in self.records:
+            if not r["path"]:
+                continue
+            executor = r["path"][-1]
+            task_type = r["task_type"]
+            key = f"agent_{executor}"
+            if key not in dist:
+                dist[key] = {}
+            if task_type not in dist[key]:
+                dist[key][task_type] = {
+                    "total": 0, "correct": 0,
+                }
+            dist[key][task_type]["total"] += 1
+            if r["success"]:
+                dist[key][task_type]["correct"] += 1
+
+        # add percentages
+        for agent, types in dist.items():
+            agent_total = sum(t["total"] for t in types.values())
+            for task_type, counts in types.items():
+                counts["pct_of_agent"] = (
+                    f"{counts['total'] / agent_total:.0%}"
+                    if agent_total > 0 else "0%"
+                )
+                counts["accuracy"] = (
+                    f"{counts['correct'] / counts['total']:.0%}"
+                    if counts["total"] > 0 else "0%"
+                )
+        return dist
+
+    def agent_ability_distribution(self):
+        """which ability dimensions each agent handled most."""
+        from .agent import TASK_ABILITY_MAP
+
+        dist = {}
+        for r in self.records:
+            if not r["path"]:
+                continue
+            executor = r["path"][-1]
+            task_type = r["task_type"]
+            abilities = TASK_ABILITY_MAP.get(task_type, [])
+            key = f"agent_{executor}"
+            if key not in dist:
+                dist[key] = {}
+
+            for ability in abilities:
+                if ability not in dist[key]:
+                    dist[key][ability] = {
+                        "total": 0, "correct": 0,
+                    }
+                dist[key][ability]["total"] += 1
+                if r["success"]:
+                    dist[key][ability]["correct"] += 1
+
+        # add accuracy
+        for agent, abilities in dist.items():
+            agent_total = sum(a["total"] for a in abilities.values())
+            for ability, counts in abilities.items():
+                counts["pct"] = (
+                    f"{counts['total'] / agent_total:.0%}"
+                    if agent_total > 0 else "0%"
+                )
+                counts["accuracy"] = (
+                    f"{counts['correct'] / counts['total']:.0%}"
+                    if counts["total"] > 0 else "0%"
+                )
+        return dist
 
     @property
     def memory_usage(self):
@@ -104,6 +177,8 @@ class Metrics:
         report = self.summary()
         report["accuracy_by_type"] = self.accuracy_by_type()
         report["routing_patterns"] = self.routing_patterns()
+        report["agent_task_distribution"] = self.agent_task_distribution()
+        report["agent_ability_distribution"] = self.agent_ability_distribution()
         if agents:
             report["specialization_depth"] = f"{self.specialization_depth(agents):.4f}"
             report["agent_abilities"] = {
