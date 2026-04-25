@@ -33,6 +33,7 @@ class AgentGraph:
 
         self.pruned_edges = []  # history of pruned connections
         self.logger = logger
+        self.routing_mode = config.get("routing", {}).get("mode", "score")
 
     def get_agent(self, agent_id):
         return self.agents[agent_id]
@@ -115,16 +116,22 @@ class AgentGraph:
             self.logger.task_start(task, agent.id)
 
         for _ in range(self.max_forwards + 1):
-            decision = agent.decide_action(task, self.max_forwards)
+            # compute best other agent's score for this task type
+            best_other_score = 0.0
+            for other in self.agents.values():
+                if other.id != agent.id and not task.has_visited(other.id):
+                    s = other.ability_score(task.task_type)
+                    if s > best_other_score:
+                        best_other_score = s
+
+            decision = agent.decide_action(
+                task, self.max_forwards,
+                routing_mode=self.routing_mode,
+                best_other_score=best_other_score,
+            )
 
             # extract reasoning from the last decision record
-            reasoning = ""
-            if agent.decisions:
-                last = agent.decisions[-1]
-                for line in last.get("response", "").split("\n"):
-                    if line.strip().upper().startswith("REASONING:"):
-                        reasoning = line.split(":", 1)[1].strip()
-                        break
+            reasoning = agent.decisions[-1].get("reasoning", "") if agent.decisions else ""
 
             if self.logger:
                 self.logger.routing_decision(
@@ -149,7 +156,7 @@ class AgentGraph:
                         self.logger.execution(agent.id, task, result, "no candidates, forced execute")
                     return task, path
 
-                next_id = agent.pick_next_agent(task, candidates[:3])
+                next_id = agent.pick_next_agent(task, candidates[:3], routing_mode=self.routing_mode)
                 next_agent = self.agents[next_id]
 
                 if self.logger:

@@ -42,9 +42,52 @@ class Agent:
         lines = [f"  {k}: {v:.2f}" for k, v in sorted(self.abilities.items())]
         return "\n".join(lines)
 
-    def decide_action(self, task, max_forwards):
-        """router: decide EXECUTE, FORWARD, or SPLIT."""
+    def decide_action(self, task, max_forwards, routing_mode="score", best_other_score=0.0):
+        """router: decide EXECUTE, FORWARD, or SPLIT.
+
+        routing_mode:
+          - "score": pure math, no LLM call. compares own ability vs best other agent.
+          - "hybrid": uses scores, calls LLM only when ambiguous (spread < 0.1).
+          - "llm": always calls LLM (original AgentNet behavior).
+        """
         self.load += 1
+        forwards_remaining = max_forwards - len(task.forward_history)
+
+        if forwards_remaining <= 0:
+            decision = "EXECUTE"
+            reasoning = "no forwards remaining"
+        elif routing_mode == "score":
+            decision, reasoning = self._decide_by_score(task, best_other_score)
+        elif routing_mode == "hybrid":
+            my_score = self.ability_score(task.task_type)
+            spread = my_score - best_other_score
+            if abs(spread) < 0.1 and forwards_remaining > 0:
+                decision, reasoning = self._decide_by_llm(task, max_forwards)
+            else:
+                decision, reasoning = self._decide_by_score(task, best_other_score)
+        else:  # llm mode
+            decision, reasoning = self._decide_by_llm(task, max_forwards)
+
+        self.decisions.append({
+            "task_id": task.task_id,
+            "decision": decision,
+            "reasoning": reasoning,
+        })
+        return decision
+
+    def _decide_by_score(self, task, best_other_score):
+        """route by capability scores. no LLM call."""
+        my_score = self.ability_score(task.task_type)
+        relevant = TASK_ABILITY_MAP.get(task.task_type, [])
+        relevant_str = ", ".join(f"{a}={self.abilities.get(a, 0):.2f}" for a in relevant) if relevant else "general"
+
+        if my_score >= best_other_score:
+            return "EXECUTE", f"[{relevant_str}] my score {my_score:.2f} >= best other {best_other_score:.2f}"
+        else:
+            return "FORWARD", f"[{relevant_str}] my score {my_score:.2f} < best other {best_other_score:.2f}, deferring"
+
+    def _decide_by_llm(self, task, max_forwards):
+        """route by LLM decision. original AgentNet behavior."""
         forwards_remaining = max_forwards - len(task.forward_history)
 
         system = prompts.ROUTER_SYSTEM.format(max_forwards=max_forwards)
@@ -61,19 +104,31 @@ class Agent:
         response = llm.call(system, [{"role": "user", "content": user}])
         decision = self._parse_decision(response)
 
-        # can't forward if no forwards remaining
         if decision == "FORWARD" and forwards_remaining <= 0:
             decision = "EXECUTE"
 
-        self.decisions.append({
-            "task_id": task.task_id,
-            "decision": decision,
-            "response": response,
-        })
-        return decision
+        reasoning = ""
+        for line in response.split("\n"):
+            if line.strip().upper().startswith("REASONING:"):
+                reasoning = line.split(":", 1)[1].strip()
+                break
 
-    def pick_next_agent(self, task, candidates):
-        """router: pick which agent to forward to."""
+        return decision, reasoning
+
+    def pick_next_agent(self, task, candidates, routing_mode="score"):
+        """router: pick which agent to forward to.
+
+        score mode: just take the top-ranked candidate (already sorted).
+        llm mode: ask the LLM to pick.
+        """
+        if routing_mode == "llm":
+            return self._pick_by_llm(task, candidates)
+
+        # score mode: first candidate is already the best (sorted by score_candidates)
+        return candidates[0].id
+
+    def _pick_by_llm(self, task, candidates):
+        """pick next agent via LLM. original AgentNet behavior."""
         candidates_text = "\n".join(
             f"  agent {a.id}: abilities = {a.capabilities_text()}, "
             f"load = {a.load}, success_rate = {self.success_rates.get(a.id, 0.0):.2f}"
@@ -89,7 +144,6 @@ class Agent:
         response = llm.call(system, [{"role": "user", "content": user}])
         agent_id = self._parse_agent_id(response)
 
-        # fallback: if parsing fails, pick first candidate
         if agent_id is None or not any(a.id == agent_id for a in candidates):
             agent_id = candidates[0].id
 
