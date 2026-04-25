@@ -110,6 +110,35 @@ class Logger:
             tc = _color(target_id)
             print(f"  {sc}agent {source_id}{RESET} -> {tc}agent {target_id}{RESET}")
 
+    def memory_retrieval(self, agent_id, task, memories):
+        """log what the agent remembered before acting."""
+        if not memories:
+            return
+
+        entry = {
+            "event": "memory_retrieval",
+            "agent": agent_id,
+            "task_id": task.task_id,
+            "retrieved": len(memories),
+            "memories": [
+                {"task_type": m.task_type, "result": m.result[:50], "success": m.success, "score": score}
+                for m, score in memories
+            ],
+        }
+        self.entries.append(entry)
+
+        self._write(f"  agent {agent_id} recalls {len(memories)} similar experiences:")
+        for m, score in memories:
+            status = "ok" if m.success else "xx"
+            self._write(f"    [{status}] [{m.task_type}] {m.description[:60]} -> {m.result[:30]} (sim={score:.2f})")
+
+        if self.verbose:
+            c = _color(agent_id)
+            print(f"  {c}agent {agent_id}{RESET} {DIM}recalls {len(memories)} memories{RESET}")
+            for m, score in memories:
+                status = f"{GREEN}ok{RESET}" if m.success else f"{RED}xx{RESET}"
+                print(f"    {status} {DIM}{m.task_type}: {m.result[:40]} (sim={score:.2f}){RESET}")
+
     def execution(self, agent_id, task, answer, reasoning):
         entry = {
             "event": "execution",

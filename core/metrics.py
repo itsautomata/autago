@@ -11,11 +11,14 @@ class Metrics:
         self.records = []
         self.correct = 0
         self.total = 0
+        self.memory_hits = 0
 
-    def record(self, task, path, success):
+    def record(self, task, path, success, memory_used=False):
         self.total += 1
         if success:
             self.correct += 1
+        if memory_used:
+            self.memory_hits += 1
 
         self.records.append({
             "task_id": task.task_id,
@@ -26,6 +29,7 @@ class Metrics:
             "result": task.result,
             "expected": task.expected_answer,
             "execution_time": task.execution_time,
+            "memory_used": memory_used,
         })
 
     @property
@@ -82,12 +86,18 @@ class Metrics:
                 executor_counts[executor] = executor_counts.get(executor, 0) + 1
         return executor_counts
 
+    @property
+    def memory_usage(self):
+        return self.memory_hits / self.total if self.total > 0 else 0.0
+
     def summary(self):
         return {
             "accuracy": f"{self.accuracy:.1%}",
             "total_tasks": self.total,
             "correct": self.correct,
             "avg_hops": f"{self.avg_hops:.2f}",
+            "memory_usage": f"{self.memory_usage:.1%}",
+            "memory_hits": self.memory_hits,
         }
 
     def full_report(self, agents=None):
