@@ -139,6 +139,10 @@ class AgentGraph:
                 )
 
             if decision == "EXECUTE":
+                if self.logger:
+                    query = f"[{task.task_type}] {task.description}"
+                    memories = agent.executor_memory.retrieve(query)
+                    self.logger.memory_retrieval(agent.id, task, memories)
                 result = agent.execute(task)
                 task.complete(result)
                 if self.logger:
@@ -150,6 +154,10 @@ class AgentGraph:
                 candidates = self.score_candidates(agent, task, neighbors)
 
                 if not candidates:
+                    if self.logger:
+                        query = f"[{task.task_type}] {task.description}"
+                        memories = agent.executor_memory.retrieve(query)
+                        self.logger.memory_retrieval(agent.id, task, memories)
                     result = agent.execute(task)
                     task.complete(result)
                     if self.logger:
@@ -167,6 +175,10 @@ class AgentGraph:
                 agent = next_agent
 
             elif decision == "SPLIT":
+                if self.logger:
+                    query = f"[{task.task_type}] {task.description}"
+                    memories = agent.executor_memory.retrieve(query)
+                    self.logger.memory_retrieval(agent.id, task, memories)
                 result = agent.execute(task)
                 task.complete(result)
                 if self.logger:
@@ -174,6 +186,10 @@ class AgentGraph:
                 return task, path
 
         # max forwards reached, force execute
+        if self.logger:
+            query = f"[{task.task_type}] {task.description}"
+            memories = agent.executor_memory.retrieve(query)
+            self.logger.memory_retrieval(agent.id, task, memories)
         result = agent.execute(task)
         task.complete(result)
         if self.logger:
@@ -199,11 +215,12 @@ class AgentGraph:
 
             self.agents[source_id].update_success_rate(target_id, success)
 
-        # update abilities for the executing agent (last in path)
+        # update abilities and memory for the executing agent (last in path)
         executor_id = path[-1]
         executor = self.agents[executor_id]
         old_abilities = dict(executor.abilities)
         executor.update_abilities(task.task_type, success)
+        executor.remember(task, success)
 
         if self.logger:
             self.logger.ability_update(

@@ -6,6 +6,7 @@ import re
 
 from . import llm
 from . import prompts
+from .memory import MemoryPool, Experience
 
 
 class Agent:
@@ -18,6 +19,18 @@ class Agent:
         self.ability_bounds = agent_cfg["ability_bounds"]
         self.decay_rate = agent_cfg["decay_rate"]
         self.decay_interval = agent_cfg["decay_interval"]
+
+        mem_cfg = config.get("memory", {})
+        self.router_memory = MemoryPool(
+            limit=mem_cfg.get("router_limit", -1),
+            retrieval_top_k=mem_cfg.get("retrieval_top_k", 3),
+            retrieval_threshold=mem_cfg.get("retrieval_threshold", 0.7),
+        )
+        self.executor_memory = MemoryPool(
+            limit=mem_cfg.get("executor_limit", 40),
+            retrieval_top_k=mem_cfg.get("retrieval_top_k", 3),
+            retrieval_threshold=mem_cfg.get("retrieval_threshold", 0.7),
+        )
 
         self.success_rates = {}  # {target_agent_id: float}
         self.load = 0
@@ -98,7 +111,7 @@ class Agent:
             capabilities=self.capabilities_text(),
             forward_history=", ".join(str(a) for a in task.forward_history) or "(none)",
             forwards_remaining=forwards_remaining,
-            similar_experiences="",  # TODO: RAG memory
+            similar_experiences=self.router_memory.format_for_prompt(f"[{task.task_type}] {task.description}"),
         )
 
         response = llm.call(system, [{"role": "user", "content": user}])
@@ -156,7 +169,7 @@ class Agent:
             task_type=task.task_type,
             description=task.description,
             context=task.context or "(none)",
-            similar_experiences="",  # TODO: RAG memory
+            similar_experiences=self.executor_memory.format_for_prompt(f"[{task.task_type}] {task.description}"),
         )
 
         response = llm.call(system, [{"role": "user", "content": user}])
@@ -164,6 +177,16 @@ class Agent:
 
         self.load = max(0, self.load - 1)
         return answer
+
+    def remember(self, task, success):
+        """store task result in executor memory."""
+        self.executor_memory.add(Experience(
+            task_type=task.task_type,
+            description=task.description,
+            result=task.result,
+            success=success,
+            execution_time=task.execution_time,
+        ))
 
     def update_abilities(self, task_type, success):
         """update capability vector after a task."""
